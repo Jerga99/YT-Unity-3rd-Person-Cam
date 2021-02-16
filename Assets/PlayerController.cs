@@ -4,36 +4,66 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float speed;
+    public float speed = 8.0f;
 
     private Rigidbody m_Rb;
+    private Camera m_Camera;
+    private Vector3 m_Movement;
+    private Vector3 m_TargetDirection;
+    private Quaternion m_TargetRotation;
 
-    private void Awake()
+    // Start is called before the first frame update
+    void Awake()
     {
         m_Rb = GetComponent<Rigidbody>();
+        m_Camera = Camera.main;
     }
 
-    // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
-        float horizontalIn = Input.GetAxis("Horizontal");
-        float verticalIn = Input.GetAxis("Vertical");
+        float horizontalInput = Input.GetAxis("Horizontal");
+        float verticalInput = Input.GetAxis("Vertical");
 
-        //float newHorizontalPos = transform.position.x + horizontalIn * speed * Time.deltaTime;
-        //float newVerticalPos = transform.position.z + verticalIn * speed * Time.deltaTime;
+        m_Movement.Set(horizontalInput, 0, verticalInput);
 
-        //// 1. Change Position
-        //transform.position = new Vector3(
-        //    newHorizontalPos,
-        //    transform.position.y,
-        //    newVerticalPos
-        //);
+        if (m_Movement == Vector3.zero)
+        {
+            return;
+        }
 
-        Vector3 movement = new Vector3(horizontalIn, 0, verticalIn);
-        movement.Normalize();
+        ComputeRotation();
+        ComputeDirection();
 
-        //transform.Translate(movement * Time.deltaTime * speed);
+        m_Rb.MovePosition(m_Rb.position + m_TargetDirection * speed * Time.fixedDeltaTime);
+        m_Rb.MoveRotation(m_TargetRotation);
+    }
 
-        m_Rb.MovePosition(m_Rb.position + movement * speed * Time.deltaTime);
+    void ComputeDirection()
+    {
+        m_TargetDirection = (m_TargetRotation * Vector3.forward).normalized;
+        m_TargetDirection.y = 0;
+    }
+
+    void ComputeRotation()
+    {
+        Vector3 cameraDirection = Quaternion.Euler(
+            0,
+            m_Camera.transform.rotation.eulerAngles.y,
+            0) * Vector3.forward;
+
+
+        Quaternion targetRotation;
+
+        if (Mathf.Approximately(Vector3.Dot(m_Movement.normalized, Vector3.forward), -1.0f))
+        {
+            targetRotation = Quaternion.LookRotation(-cameraDirection);
+        }
+        else
+        {
+            Quaternion movementRotation = Quaternion.FromToRotation(Vector3.forward, m_Movement.normalized);
+            targetRotation = Quaternion.LookRotation(movementRotation * cameraDirection);
+        }
+
+        m_TargetRotation = targetRotation;
     }
 }
